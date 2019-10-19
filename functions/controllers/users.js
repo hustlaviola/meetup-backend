@@ -1,10 +1,12 @@
-const { db } = require('../utils/admin');
-const { firebase } = require('../config/config');
+const { admin, db } = require('../utils/admin');
+const { firebase, firebaseConfig } = require('../config/config');
 
 const signup = (req, res) => {
   const { email, password, username } = req.body;
 
   let token, userId;
+
+  const avatar = 'no-img.png';
 
   return db.doc(`/users/${username}`).get()
     .then(doc => {
@@ -24,6 +26,7 @@ const signup = (req, res) => {
         username,
         email,
         createdAt: new Date().toISOString(),
+        imageUrl: `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${avatar}?alt=media`,
         userId
       }
       return db.doc(`/users/${username}`).set(userCredentials);
@@ -59,4 +62,48 @@ const login = (req, res) => {
     });
 }
 
-module.exports = { signup, login };
+const uploadProfileImage = (req, res) => {
+  const BusBoy = require('busboy');
+  const path = require('path');
+  const os = require('os');
+  const fs = require('fs');
+
+  const busboy = new BusBoy({ headers: req.headers });
+
+  let imageName;
+  let imageToBeUploaded;
+
+  busboy.on('file', (fieldname, file, filename, encoding, mimetype) => {
+    const mimetypes = ['image/jpeg', 'image/png'];
+    if (!mimetypes.includes(mimetype)) return res.status(400).json({ error: 'file type not supported'});
+    filenameArray = filename.split('.');
+    const imageExtension = filenameArray[filenameArray.length - 1];
+    imageName = `${Math.round(Math.random() * 100000000000000)}.${imageExtension}`;
+    const filepath = path.join(os.tmpdir(), imageName);
+    imageToBeUploaded = { filepath, mimetype };
+    file.pipe(fs.createWriteStream(filepath))
+  });
+  busboy.on('finish', () => {
+    admin.storage().bucket().upload(imageToBeUploaded.filepath, {
+      resumable: false,
+      metadata: {
+        metadata: {
+          contentType: imageToBeUploaded.mimetype
+        }
+      }
+    })
+    .then(() => {
+      const imageUrl = `https://firebasestorage.googleapis.com/v0/b/${firebaseConfig.storageBucket}/o/${imageName}?alt=media`;
+      return db.doc(`/users/${req.user.username}`).update({ imageUrl });
+    })
+    .then(() => {
+      return res.json({message: 'image uploaded succesfully'});
+    })
+    .catch((error) => {
+      return res.status(500).json({ error });
+    })
+  });
+  busboy.end(req.rawBody);
+}
+
+module.exports = { signup, login, uploadProfileImage };
