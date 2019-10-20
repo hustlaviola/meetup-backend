@@ -1,15 +1,15 @@
-function isEmail(email) {
+const isEmail = (email) => {
   const regEx = /^[\w]+[@][\w]+[.][a-z]{2,3}$/;
   const ans = email.match(regEx) ? true : false;
   return ans;
 }
 
-function isEmpty(string) {
+const isEmpty = (string) => {
   const ans = string && string.trim() ? false : true;
   return ans;
 }
 
-function authError(req, res, next) {
+const authError = (req, res, next) => {
   const { email, password, confirmPassword, username } = req.body;
 
   let errors = {};
@@ -32,4 +32,18 @@ function authError(req, res, next) {
   return next();
 }
 
-module.exports = { authError };
+const profile = data => {
+  const { bio, occupation, website, location } = data;
+  let userDetails = {};
+  if (!isEmpty(bio)) userDetails.bio = bio.trim().replace(/  +/g, ' ');
+  if (!isEmpty(occupation)) userDetails.occupation = occupation;
+  if (!isEmpty(website)) {
+    if (website.trim().substring(0, 4) !== 'http') {
+      userDetails.website = `http://${website.trim()}`
+    } else userDetails.website = website.trim();
+  }
+  if (!isEmpty(location)) userDetails.location = location;
+  return userDetails;
+}
+
+module.exports = { authError, profile };

@@ -1,20 +1,26 @@
 const functions = require('firebase-functions');
 const app = require('express')();
 const { FBAuth } = require('./middlewares/FBAuth');
-const { authError } = require('./middlewares/authValidator');
-const { getPosts, createPost } = require('./controllers/posts');
-const { signup, login, uploadProfileImage } = require('./controllers/users');
+const { authError } = require('./middlewares/validations/userValidator');
+const { getPosts, createPost, getPost } = require('./controllers/posts');
+const { signup, login, uploadProfileImage, updateProfile, getOwnDetails } = require('./controllers/users');
 
 // Post route
-app.get('/posts', FBAuth, getPosts)
+app.get('/posts', FBAuth, getPosts);
 
-app.post('/posts', FBAuth, createPost)
+app.post('/posts', FBAuth, createPost);
+
+app.get('/posts/:postId', getPost);
 
 // Auth route
-app.post('/signup', authError, signup);
+app.post('/auth/signup', authError, signup);
 
-app.post('/login', authError, login);
+app.post('/auth/login', authError, login);
 
-app.post('/users/image', FBAuth, uploadProfileImage)
+app.post('/users/image', FBAuth, uploadProfileImage);
+
+app.post('/users/profile', FBAuth, updateProfile);
+
+app.get('/users/credentials', FBAuth, getOwnDetails);
 
 exports.api = functions.https.onRequest(app);

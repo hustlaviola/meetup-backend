@@ -1,5 +1,6 @@
 const { admin, db } = require('../utils/admin');
 const { firebase, firebaseConfig } = require('../config/config');
+const { profile } = require('../middlewares/validations/userValidator');
 
 const signup = (req, res) => {
   const { email, password, username } = req.body;
@@ -62,6 +63,36 @@ const login = (req, res) => {
     });
 }
 
+const updateProfile = (req, res) => {
+  const userDetails = profile(req.body);
+
+  return db.doc(`/users/${req.user.username}`).update(userDetails)
+    .then(() => {
+      return res.json({ message: 'profile updated successfully' })
+    })
+    .catch(error => res.status(500).json({ error: error.code }));
+}
+
+const getOwnDetails = (req, res) => {
+  let userInfo = {};
+  return db.doc(`/users/${req.user.username}`).get()
+    .then(doc => {
+      if (doc.exists) {
+        userInfo.credentials = doc.data();
+        return db.collection('likes').where('username', '==', req.user.username).get()
+      } else return null;
+    })
+    .then(data => {
+      if (!data) return res.status(404).json({ error: 'user credentials not found'});
+      userInfo.likes = [];
+      data.forEach(doc => {
+        userInfo.likes.push(doc.data());
+      })
+      return res.json(userInfo);
+    })
+    .catch(error => res.status(500).json({ error }));
+}
+
 const uploadProfileImage = (req, res) => {
   const BusBoy = require('busboy');
   const path = require('path');
@@ -106,4 +137,4 @@ const uploadProfileImage = (req, res) => {
   busboy.end(req.rawBody);
 }
 
-module.exports = { signup, login, uploadProfileImage };
+module.exports = { signup, login, uploadProfileImage, updateProfile, getOwnDetails };
