@@ -73,6 +73,35 @@ const updateProfile = (req, res) => {
     .catch(error => res.status(500).json({ error: error.code }));
 }
 
+const getUserDetails = (req, res) => {
+  let userInfo = {};
+  return db.doc(`/users/${req.params.username}`).get()
+    .then(doc => {
+      if (doc.exists) {
+        userInfo.user = doc.data();
+        return db.collection('posts').where('username', '==', req.params.username)
+          .orderBy('createdAt', 'desc').get();
+      } else return res.status(404).json({ error: 'user not found'});
+    })
+    .then(data => {
+      userInfo.posts = [];
+      data.forEach(doc => {
+        const { body, createdAt, username, userImage, likeCount, commentCount } = doc.data();
+        userInfo.posts.push({
+          body,
+          createdAt,
+          username,
+          userImage,
+          likeCount,
+          commentCount,
+          postId: doc.id
+        });
+      });
+      return res.json(userInfo);
+    })
+    .catch(error => res.status(500).json({ error }));
+}
+
 const getOwnDetails = (req, res) => {
   let userInfo = {};
   return db.doc(`/users/${req.user.username}`).get()
@@ -86,6 +115,23 @@ const getOwnDetails = (req, res) => {
       userInfo.likes = [];
       data.forEach(doc => {
         userInfo.likes.push(doc.data());
+      })
+      return db.collection('notifications').where('recipient', '==', req.user.username)
+        .orderBy('createdAt', 'desc').limit(10).get();
+    })
+    .then(data => {
+      userInfo.notifications = [];
+      data.forEach(doc => {
+        const { recipient, sender, read, postId, type, createdAt } = doc.data()
+        userInfo.notifications.push({
+          recipient,
+          sender,
+          createdAt,
+          postId,
+          type,
+          read,
+          notificationId: doc.id
+        })
       })
       return res.json(userInfo);
     })
@@ -129,12 +175,31 @@ const uploadProfileImage = (req, res) => {
     .then(() => {
       return res.json({message: 'image uploaded succesfully'});
     })
-    .catch((error) => {
-      return res.status(500).json({ error });
-    })
+    .catch(error => res.status(500).json({ error }));
   });
   busboy.end(req.rawBody);
   return;
 }
 
-module.exports = { signup, login, uploadProfileImage, updateProfile, getOwnDetails };
+const markNotificationsRead = (req, res) => {
+  let batch = db.batch();
+  req.body.forEach(notificationId => {
+    const notification = db.doc(`/notifications/${notificationId}`);
+    batch.update(notification, { read: true });
+  });
+  batch.commit()
+    .then(() => {
+      return res.json({ message: 'notifications marked read'});
+    })
+    .catch(error => res.status(500).json({ error }));
+}
+
+module.exports = {
+  signup,
+  login,
+  uploadProfileImage,
+  updateProfile,
+  getOwnDetails,
+  getUserDetails,
+  markNotificationsRead
+};

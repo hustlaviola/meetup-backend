@@ -103,7 +103,7 @@ const likePost = (req, res) => {
   const postDocument = db.doc(`/posts/${postId}`);
   let postData;
 
-  postDocument.get()
+  return postDocument.get()
     .then(doc => {
       if (doc.exists) {
         postData = doc.data();
@@ -138,4 +138,30 @@ const likePost = (req, res) => {
     .catch(error => res.status(500).json({ error }));
 }
 
-module.exports = { getPosts, createPost, getPost, commentOnPost, likePost };
+const deletePost = (req, res) => {
+  const myDocument = db.doc(`/posts/${req.params.postId}`);
+
+  return myDocument.get()
+    .then(doc => {
+      if (!doc.exists) return res.status(404).json({ error: 'post not available' });
+      const { username } = doc.data();
+      if (username !== req.user.username) {
+        return res.status(403).json({ error: 'unauthorized'});
+      } else {
+        return myDocument.delete();
+      }
+    })
+    .then(() => {
+      return res.json({message: 'post deleted successfully'});
+    })
+    .catch(error => res.status(500).json({ error }));
+}
+
+module.exports = {
+  getPosts,
+  createPost,
+  getPost,
+  commentOnPost,
+  likePost,
+  deletePost
+};
