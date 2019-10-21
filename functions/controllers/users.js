@@ -1,6 +1,6 @@
 const { admin, db } = require('../utils/admin');
 const { firebase, firebaseConfig } = require('../config/config');
-const { profile } = require('../middlewares/validations/userValidator');
+const { checkProfile } = require('../middlewares/validations/validator');
 
 const signup = (req, res) => {
   const { email, password, username } = req.body;
@@ -64,7 +64,7 @@ const login = (req, res) => {
 }
 
 const updateProfile = (req, res) => {
-  const userDetails = profile(req.body);
+  const userDetails = checkProfile(req.body);
 
   return db.doc(`/users/${req.user.username}`).update(userDetails)
     .then(() => {
@@ -77,10 +77,9 @@ const getOwnDetails = (req, res) => {
   let userInfo = {};
   return db.doc(`/users/${req.user.username}`).get()
     .then(doc => {
-      if (doc.exists) {
-        userInfo.credentials = doc.data();
-        return db.collection('likes').where('username', '==', req.user.username).get()
-      } else return null;
+      if (!doc.exists) return null;
+      userInfo.credentials = doc.data();
+      return db.collection('likes').where('username', '==', req.user.username).get();
     })
     .then(data => {
       if (!data) return res.status(404).json({ error: 'user credentials not found'});
@@ -135,6 +134,7 @@ const uploadProfileImage = (req, res) => {
     })
   });
   busboy.end(req.rawBody);
+  return;
 }
 
 module.exports = { signup, login, uploadProfileImage, updateProfile, getOwnDetails };

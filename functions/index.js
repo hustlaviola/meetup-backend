@@ -1,9 +1,23 @@
 const functions = require('firebase-functions');
 const app = require('express')();
 const { FBAuth } = require('./middlewares/FBAuth');
-const { authError } = require('./middlewares/validations/userValidator');
-const { getPosts, createPost, getPost } = require('./controllers/posts');
-const { signup, login, uploadProfileImage, updateProfile, getOwnDetails } = require('./controllers/users');
+const { authError } = require('./middlewares/validations/validator');
+const {
+    getPosts,
+    createPost,
+    getPost,
+    commentOnPost,
+    likePost,
+    deletePost
+} = require('./controllers/posts');
+
+const {
+    signup,
+    login,
+    uploadProfileImage,
+    updateProfile,
+    getOwnDetails
+} = require('./controllers/users');
 
 // Post route
 app.get('/posts', FBAuth, getPosts);
@@ -11,6 +25,14 @@ app.get('/posts', FBAuth, getPosts);
 app.post('/posts', FBAuth, createPost);
 
 app.get('/posts/:postId', getPost);
+
+app.post('/posts/:postId/comments', FBAuth, commentOnPost);
+
+app.get('/posts/:postId/like', FBAuth, likePost);
+
+app.delete('/posts/:postId', FBAuth, deletePost);
+
+// app.post('/posts/:postId/unlike', FBAuth, unlikePost);
 
 // Auth route
 app.post('/auth/signup', authError, signup);

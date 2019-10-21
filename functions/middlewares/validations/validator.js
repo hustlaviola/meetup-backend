@@ -32,7 +32,7 @@ const authError = (req, res, next) => {
   return next();
 }
 
-const profile = data => {
+const checkProfile = data => {
   const { bio, occupation, website, location } = data;
   let userDetails = {};
   if (!isEmpty(bio)) userDetails.bio = bio.trim().replace(/  +/g, ' ');
@@ -46,4 +46,10 @@ const profile = data => {
   return userDetails;
 }
 
-module.exports = { authError, profile };
+const checkComment = data => {
+  const { body } = data;
+  const isComment = isEmpty(body) ? false : true;
+  return isComment;
+}
+
+module.exports = { authError, checkProfile, checkComment };
