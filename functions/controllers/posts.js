@@ -8,12 +8,23 @@ const getPosts = (req, res) => {
     .then(data => {
       let posts = [];
       data.forEach(doc => {
-        const { username, body, createdAt } = doc.data();
+        const {
+          username,
+          body,
+          createdAt,
+          likeCount,
+          commentCount,
+          userImage
+        } = doc.data();
+
         posts.push({
           postId: doc.id,
           username,
           body,
-          createdAt
+          createdAt,
+          likeCount,
+          commentCount,
+          userImage
         });
       });
       return res.json(posts);

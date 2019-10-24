@@ -54,9 +54,10 @@ exports.api = functions.https.onRequest(app);
 
 exports.createLikeNotification = functions.firestore.document('likes/{id}')
   .onCreate(snapshot => {
-    return db.doc(`/posts/${snapshot.data().postId}`).get()
+    const snap = snapshot.data();
+    return db.doc(`/posts/${snap.postId}`).get()
       .then(doc => {
-        if (doc.exists) {
+        if (doc.exists && doc.data().username !== snap.username) {
           return db.doc(`/notifications/${snapshot.id}`).set({
             createdAt: new Date().toISOString(),
             recipient: doc.data().username,
@@ -66,10 +67,7 @@ exports.createLikeNotification = functions.firestore.document('likes/{id}')
             postId: doc.id
           });
         }
-        return;
-      })
-      .then(() => {
-        return;
+        return true;
       })
       .catch(error => {
         return;
@@ -79,9 +77,6 @@ exports.createLikeNotification = functions.firestore.document('likes/{id}')
 exports.deleteNotifications = functions.firestore.document('likes/{id}')
   .onDelete(snapshot => {
     return db.doc(`/notifications/${snapshot.id}`).delete()
-      .then(() => {
-        return;
-      })
       .catch(error => {
         return;
       })
@@ -89,9 +84,10 @@ exports.deleteNotifications = functions.firestore.document('likes/{id}')
 
 exports.createCommentNotification = functions.firestore.document('comments/{id}')
   .onCreate(snapshot => {
-    return db.doc(`/posts/${snapshot.data().postId}`).get()
+    const snap = snapshot.data();
+    return db.doc(`/posts/${snap.postId}`).get()
       .then(doc => {
-        if (doc.exists) {
+        if (doc.exists && doc.data().username !== snap.username) {
           return db.doc(`/notifications/${snapshot.id}`).set({
             createdAt: new Date().toISOString(),
             recipient: doc.data().username,
@@ -101,10 +97,63 @@ exports.createCommentNotification = functions.firestore.document('comments/{id}'
             postId: doc.id
           });
         }
+        return true;
+      })
+      .catch(error => {
         return;
       })
-      .then(() => {
-        return;
+  })
+
+exports.onUserImageChange = functions.firestore.document('users/{userId}')
+  .onUpdate(change => {
+    const before = change.before.data();
+    const after = change.after.data();
+    if (before.imageUrl !== after.imageUrl) {
+      let batch = db.batch();
+      return db.collection('posts').where('username', '==', before.username).get()
+        .then(data => {
+          data.forEach(doc => {
+            const post = db.doc(`/posts/${doc.id}`);
+            batch.update(post, { userImage: after.imageUrl });
+          })
+          return db.collection('comments').where('username', '==', before.username).get()
+        })
+        .then(data => {
+          data.forEach(doc => {
+            const comment = db.doc(`/comments/${doc.id}`);
+            batch.update(comment, { userImage: after.imageUrl });
+          })
+          return batch.commit();
+        })
+        .catch(error => {
+          return;
+        })
+    }
+    return true;
+  })
+
+exports.onPostDelete = functions.firestore.document('posts/{postId}')
+  .onDelete((snapshot, context) => {
+    const { postId } = context.params;
+    const batch = db.batch();
+    return db.collection('comments').where('postId', '==', postId).get()
+      .then(data => {
+        data.forEach(doc => {
+          batch.delete(db.doc(`/comments/${doc.id}`));
+        })
+        return db.collection('likes').where('postId', '==', postId).get();
+      })
+      .then(data => {
+        data.forEach(doc => {
+          batch.delete(db.doc(`/likes/${doc.id}`));
+        })
+        return db.collection('notifications').where('postId', '==', postId).get();
+      })
+      .then(data => {
+        data.forEach(doc => {
+          batch.delete(db.doc(`/notifications/${doc.id}`));
+        })
+        return batch.commit();
       })
       .catch(error => {
         return;
